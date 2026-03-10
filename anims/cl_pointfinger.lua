@@ -1,31 +1,32 @@
 local mp_pointing = false
-local keyPressed = false
 local dict = "anim@mp_point"
 local anim = "task_mp_pointing"
+
 local function startPointing()
     local playerPed = PlayerPedId()
     RequestAnimDict(dict)
     while not HasAnimDictLoaded(dict) do Wait(0) end
-    SetPedCurrentWeaponVisible(playerPed, 0, 1, 1, 1)
-    SetPedConfigFlag(playerPed, 36, 1)
+    SetPedCurrentWeaponVisible(playerPed, false, true, true, true)
+    SetPedConfigFlag(playerPed, 36, true)
     Citizen.InvokeNative(0x2D537BA194896636, playerPed, anim, 0.5, 0, dict, 24)
 end
+
 local function stopPointing()
     local playerPed = PlayerPedId()
     Citizen.InvokeNative(0xD01015C7316AE176, playerPed, "Stop")
     if not IsPedInjured(playerPed) then ClearPedSecondaryTask(playerPed) end
-    if not IsPedInAnyVehicle(playerPed, 1) then
-        SetPedCurrentWeaponVisible(playerPed, 1, 1, 1, 1)
+    if not IsPedInAnyVehicle(playerPed, true) then
+        SetPedCurrentWeaponVisible(playerPed, true, true, true, true)
     end
-    SetPedConfigFlag(playerPed, 36, 0)
+    SetPedConfigFlag(playerPed, 36, false)
     ClearPedSecondaryTask(playerPed)
     RemoveAnimDict(dict)
 end
+
 RegisterCommand('point', function()
     local playerPed = PlayerPedId()
     if not mp_pointing and IsPedOnFoot(playerPed) then
         Wait(200)
-        keyPressed = true
         startPointing()
         mp_pointing = true
         CreateThread(function()
@@ -51,24 +52,28 @@ RegisterCommand('point', function()
                             camHeading = 180.0
                         end
                         camHeading = (camHeading + 180.0) / 360.0
-                        local blocked = 0
+                        local blocked = false
                         local nn = 0
-                        local coords = GetOffsetFromEntityInWorldCoords(playerPed, (cosCamHeading *     -0.2) -     (sinCamHeading *         (0.4 *             camHeading +             0.3)), (sinCamHeading *     -0.2) +     (cosCamHeading *         (0.4 *             camHeading +             0.3)), 0.6)
-                        local ray = StartShapeTestCapsule(coords.x, coords.y, coords.z - 0.2, coords.x, coords.y, coords.z + 0.2, 0.4, 95, playerPed, 7); nn, blocked, coords, coords = GetRaycastResult(ray)
+                        local coords = GetOffsetFromEntityInWorldCoords(playerPed,
+                            (cosCamHeading * -0.2) -
+                            (sinCamHeading * (0.4 * camHeading + 0.3)),
+                            (sinCamHeading * -0.2) +
+                            (cosCamHeading * (0.4 * camHeading + 0.3)), 0.6)
+                        local ray = StartShapeTestCapsule(coords.x, coords.y, coords.z - 0.2, coords.x, coords.y,
+                            coords.z + 0.2, 0.4, 95, playerPed, 7); nn, blocked, coords, coords = GetRaycastResult(ray)
                         Citizen.InvokeNative(0xD5BB4025AE449A4E, playerPed, "Pitch", camPitch)
-                        Citizen.InvokeNative(0xD5BB4025AE449A4E, playerPed,  "Heading", camHeading * -1.0 + 1.0)
+                        Citizen.InvokeNative(0xD5BB4025AE449A4E, playerPed, "Heading", camHeading * -1.0 + 1.0)
                         Citizen.InvokeNative(0xB0A6CFD2C69C1088, playerPed, "isBlocked", blocked)
-                        Citizen.InvokeNative(0xB0A6CFD2C69C1088, playerPed, "isFirstPerson", Citizen.InvokeNative( 0xEE778F8C7E1142E2, Citizen.InvokeNative( 0x19CAFA3C87F7C2FF)) == 4)
+                        Citizen.InvokeNative(0xB0A6CFD2C69C1088, playerPed, "isFirstPerson",
+                            Citizen.InvokeNative(0xEE778F8C7E1142E2, Citizen.InvokeNative(0x19CAFA3C87F7C2FF)) == 4)
                     end
                 end
             end
-        end)        
+        end)
     elseif mp_pointing or (not IsPedOnFoot(playerPed) and mp_pointing) then
-        keyPressed = true
         mp_pointing = false
         stopPointing()
     end
-
 end, false)
 
 RegisterKeyMapping('point', Config.PointFingerName, 'keyboard', Config.PointFingerBind)
